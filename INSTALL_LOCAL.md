@@ -1,113 +1,157 @@
-# LAB-RH-01 local bootstrap instructions
+# Local installation
 
-Approved target: Ubuntu under WSL 2, project path `~/ai-projects/rag-harness`.
+Target environment: Ubuntu under WSL 2 or a compatible Linux system.
 
-## 1. Confirm the target directory
+## 1. Enter the project directory
 
-```bash
-cd ~/ai-projects/rag-harness
-pwd
-find . -mindepth 1 -maxdepth 1 -print
-```
+    cd ~/ai-projects/rag-harness
 
-The final command should currently produce no output.
+## 2. Keep Conda out of the Harness environment
 
-## 2. Keep Miniconda out of the Harness environment
+If a Conda environment is active:
 
-If the prompt shows a Conda environment, deactivate it before continuing:
+    conda deactivate
 
-```bash
-conda deactivate
-printf 'CONDA_PREFIX=%s\n' "${CONDA_PREFIX:-}"
-```
+Confirm that CONDA_PREFIX is empty:
 
-An empty `CONDA_PREFIX` is the expected result. Do not install Harness packages into Conda `base`.
+    printf 'CONDA_PREFIX=%s\n' "${CONDA_PREFIX:-}"
 
-## 3. Install the approved CPython 3.12 provider
+## 3. Install uv and Python 3.12
 
-The approved path is a user-local installation of Astral `uv`. It installs a managed CPython build without changing Ubuntu's system Python or the Miniconda installation.
+Install uv:
 
-```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://astral.sh/uv/install.sh -o /tmp/uv-install.sh
-sh /tmp/uv-install.sh
-export PATH="$HOME/.local/bin:$PATH"
-uv --version
-uv python install 3.12
-uv python find 3.12
-```
+    curl --proto '=https' --tlsv1.2 -LsSf https://astral.sh/uv/install.sh -o /tmp/uv-install.sh
+    sh /tmp/uv-install.sh
+    export PATH="$HOME/.local/bin:$PATH"
 
-Record the complete output of `uv --version` and `uv python find 3.12` in the laboratory observations.
+Install Python 3.12:
 
-## 4. Extract this bootstrap package
+    uv python install 3.12
+    uv python find 3.12
 
-Extract the package contents directly into the empty target directory. From a typical Windows Downloads directory, replace `<windows-user>` if needed:
+## 4. Create and activate the virtual environment
 
-```bash
-cd ~/ai-projects/rag-harness
-unzip /mnt/c/Users/<windows-user>/Downloads/rag-harness-bootstrap-v0.1.zip -d .
-find . -maxdepth 3 -type f -print | sort
-```
+    uv venv --python 3.12 .venv
+    source .venv/bin/activate
 
-If the package is already stored elsewhere in WSL, use its actual path in the `unzip` command.
+Verify the interpreter:
 
-## 5. Create the isolated Harness environment
+    python --version
+    python -c 'import sys; print(sys.executable)'
 
-```bash
-cd ~/ai-projects/rag-harness
-uv venv --python 3.12 .venv
-source .venv/bin/activate
-python --version
-python -c 'import sys; print(sys.executable); print(sys.prefix)'
-bash scripts/check_environment.sh
-```
+Expected result:
 
-Acceptance criteria:
+- Python 3.12.x
+- executable path inside ~/ai-projects/rag-harness/.venv/
 
-- `python --version` reports Python 3.12.x;
-- the executable is under `~/ai-projects/rag-harness/.venv/`;
-- the environment check finishes with `PASS`;
-- `CONDA_PREFIX` is empty.
+## 5. Install project dependencies
 
-## 6. Validate and start Qdrant
+    uv sync --extra rag --extra telemetry --group dev
 
-```bash
-cd ~/ai-projects/rag-harness
-docker compose config
-docker compose pull qdrant
-docker compose up -d qdrant
-docker compose ps
-bash scripts/check_qdrant.sh
-docker volume inspect rag_harness_qdrant_data
-```
+This installs:
 
-Qdrant REST and gRPC are exposed only on the local machine at `127.0.0.1:6333` and `127.0.0.1:6334`. The dashboard is available locally at `http://127.0.0.1:6333/dashboard`.
+- qdrant-client
+- OpenTelemetry dependencies
+- pytest
+- the local rag-evidence-harness package
 
-## 7. Persistence check
+## 6. Start Qdrant
 
-```bash
-docker compose restart qdrant
-bash scripts/check_qdrant.sh
-docker compose ps
-```
+Validate the Compose configuration:
 
-To stop Qdrant without deleting data:
+    docker compose config
 
-```bash
-docker compose stop qdrant
-```
+Start Qdrant:
 
-Do not use `docker compose down -v`; `-v` deletes the named data volume.
+    docker compose up -d qdrant
 
-## 8. Return the laboratory observations
+Verify readiness:
 
-Provide Harness Build with:
+    docker compose ps
+    bash scripts/check_qdrant.sh
 
-- `uv --version`;
-- `python --version` and the Python executable path;
-- `docker compose config --images`;
-- `docker compose ps`;
-- Qdrant readiness-check output;
-- named-volume name;
-- any deviations, warnings, or failed commands.
+Qdrant is exposed locally at:
 
-Do not include secrets, complete environment-variable dumps, or unrelated host information.
+- REST: http://127.0.0.1:6333
+- gRPC: 127.0.0.1:6334
+- Dashboard: http://127.0.0.1:6333/dashboard
+
+To stop Qdrant without deleting its data:
+
+    docker compose stop qdrant
+
+Do not run docker compose down -v unless deleting the local Qdrant volume is intentional.
+
+## 7. Install and verify the Ollama embedding model
+
+Install the model in the same environment where the Ollama server runs:
+
+    ollama pull nomic-embed-text:v1.5
+
+Confirm that it is available:
+
+    ollama list
+
+The current baseline expects:
+
+- model: nomic-embed-text:v1.5
+- embedding size: 768
+
+## 8. Run the retrieval baselines
+
+Run the synthetic Qdrant baseline:
+
+    python scripts/qdrant_baseline.py
+
+Run the dense semantic retrieval baseline:
+
+    python scripts/semantic_retrieval_baseline.py
+
+The semantic retrieval run should report:
+
+- COLLECTION_BUILD: PASS
+- SEMANTIC_SEARCH: PASS
+- metadata_filtering as the top-ranked topic
+- ARTIFACT_WRITE: PASS
+
+The machine-readable result is written locally to:
+
+    artifacts/LAB-RH-02B/semantic_retrieval_result.json
+
+Generated artifact contents are excluded from Git.
+
+## 9. Run the automated tests
+
+    pytest -q
+
+The current expected test gate is:
+
+    5 passed
+
+## 10. Optional telemetry smoke run
+
+The telemetry smoke script is available at:
+
+    scripts/telemetry_smoke.py
+
+Telemetry export behaviour is represented by two separate fields:
+
+- export_attempted
+- export_succeeded
+
+Collector unavailability must be recorded as a limitation and must not be represented as successful export.
+
+## 11. Local data and cleanup
+
+The following remain local and are excluded from Git:
+
+- .venv/
+- .env
+- runs/
+- artifacts/
+- backups/
+- Qdrant storage data
+
+To stop Qdrant without deleting its volume:
+
+    docker compose stop qdrant
