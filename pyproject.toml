@@ -17,6 +17,9 @@ telemetry = [
   "openinference-instrumentation==0.1.54",
   "openinference-semantic-conventions==0.1.30",
 ]
+rag = [
+    "qdrant-client==1.18.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
