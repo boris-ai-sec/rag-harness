@@ -1,0 +1,23 @@
+name: rag-harness
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.18.3
+    container_name: rag-harness-qdrant
+    restart: "no"
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  qdrant_data:
+    name: rag_harness_qdrant_data

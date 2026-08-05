@@ -1,0 +1,19 @@
+.venv/
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.log
+.DS_Store
+qdrant_storage/
+
+runs/*
+!runs/.gitkeep
+
+artifacts/*
+!artifacts/.gitkeep
+
+# Local historical and generated material
+backups/
+*.egg-info/
