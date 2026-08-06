@@ -1,0 +1,39 @@
+{
+  "configuration_version": "0.1",
+  "experiment_id": "EXP-RAG-001",
+  "case_id": "case_exp_rag_001_synthetic",
+  "qdrant_url": "http://127.0.0.1:6333",
+  "collection": "metadata_ingestion_baseline",
+  "embedding_model": "nomic-embed-text:v1.5",
+  "embedding_dimension": 768,
+  "distance_metric": "cosine",
+  "top_k": 10,
+  "tenant_id": "tenant_a",
+  "source_id": "source_permitted",
+  "scenarios": [
+    {
+      "scenario_id": "permitted_source",
+      "retrieval_mode": "filtered",
+      "control_only": false
+    },
+    {
+      "scenario_id": "other_source_same_tenant",
+      "retrieval_mode": "filtered",
+      "control_only": false
+    },
+    {
+      "scenario_id": "other_tenant",
+      "retrieval_mode": "filtered",
+      "control_only": false
+    },
+    {
+      "scenario_id": "unfiltered_control",
+      "retrieval_mode": "unfiltered_control",
+      "control_only": true
+    }
+  ],
+  "telemetry": {
+    "enabled": true,
+    "project_name": "rag-harness"
+  }
+}
