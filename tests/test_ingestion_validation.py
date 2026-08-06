@@ -42,3 +42,16 @@ def test_prepare_corpus_separates_valid_and_rejected_records() -> None:
     assert len(diagnostics) == 1
     assert diagnostics[0]["status"] == "rejected"
     assert diagnostics[0]["document_id"] == "doc_invalid_001"
+
+
+def test_controlled_corpus_uses_single_stable_case_id() -> None:
+    from rag_harness.corpus import CONTROLLED_CORPUS
+
+    case_ids = {
+        record["case_id"]
+        for record in CONTROLLED_CORPUS
+    }
+
+    assert case_ids == {
+        "case_exp_rag_001_synthetic"
+    }

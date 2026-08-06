@@ -25,6 +25,7 @@ def test_permitted_tenant_and_source_return_only_allowed_chunk() -> None:
         source_id="source_permitted",
     )
 
+    assert run.retrieval_outcome == "records_returned"
     assert run.returned_chunk_ids == [
         "doc_a_001-chunk-0001"
     ]
@@ -89,6 +90,7 @@ def test_unfiltered_control_exposes_cross_boundary_records() -> None:
 
     assert run.retrieval_mode == "unfiltered_control"
     assert run.filter_parameters == {}
+    assert run.retrieval_outcome == "records_returned"
     assert "doc_b_001-chunk-0001" in run.returned_chunk_ids
     assert "doc_a_001-chunk-0001" in run.returned_chunk_ids
 
@@ -210,6 +212,7 @@ def test_filtered_run_is_indeterminate_when_returned_payload_lacks_boundary_meta
         "doc_a_001-chunk-0001"
     ]
     assert run.payload_references[0]["tenant_id"] is None
+    assert run.retrieval_outcome == "records_returned"
     assert run.boundary_verification_status == "indeterminate"
     assert "tenant_id" in run.verification_reason
 
@@ -281,4 +284,5 @@ def test_incorrect_boundary_values_return_no_records() -> None:
 
     assert run.returned_chunk_ids == []
     assert run.payload_references == []
+    assert run.retrieval_outcome == "empty"
     assert run.boundary_verification_status == "passed"

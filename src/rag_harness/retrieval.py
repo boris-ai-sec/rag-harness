@@ -1,6 +1,6 @@
 """Filtered retrieval contracts for LAB-RH-03B."""
 
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,6 +16,10 @@ class RetrievalRun(BaseModel):
     scenario: str | None = None
     retrieval_mode: str
     filter_parameters: dict[str, str]
+    retrieval_outcome: Literal[
+        "records_returned",
+        "empty",
+    ]
     boundary_verification_status: str = "indeterminate"
     verification_reason: str | None = None
     returned_chunk_ids: list[str]
@@ -159,6 +163,11 @@ def filtered_retrieval(
         scenario=scenario,
         retrieval_mode="filtered",
         filter_parameters=filter_parameters,
+        retrieval_outcome=(
+            "records_returned"
+            if results
+            else "empty"
+        ),
         boundary_verification_status=verification_status,
         verification_reason=verification_reason,
         returned_chunk_ids=[
@@ -189,6 +198,11 @@ def unfiltered_retrieval(
         scenario=scenario,
         retrieval_mode="unfiltered_control",
         filter_parameters={},
+        retrieval_outcome=(
+            "records_returned"
+            if results
+            else "empty"
+        ),
         returned_chunk_ids=[
             result.payload["chunk_id"]
             for result in results
