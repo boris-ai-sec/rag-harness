@@ -459,6 +459,9 @@ wheels = [
 name = "rag-evidence-harness"
 version = "0.1.0.dev0"
 source = { editable = "." }
+dependencies = [
+    { name = "pydantic" },
+]
 
 [package.optional-dependencies]
 rag = [
@@ -484,6 +487,7 @@ requires-dist = [
     { name = "opentelemetry-api", marker = "extra == 'telemetry'", specifier = "==1.43.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'telemetry'", specifier = "==1.43.0" },
     { name = "opentelemetry-sdk", marker = "extra == 'telemetry'", specifier = "==1.43.0" },
+    { name = "pydantic", specifier = ">=2.10,<3" },
     { name = "qdrant-client", marker = "extra == 'rag'", specifier = "==1.18.0" },
 ]
 provides-extras = ["telemetry", "rag"]
