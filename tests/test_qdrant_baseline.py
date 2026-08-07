@@ -1,6 +1,9 @@
 from uuid import uuid4
 
+import pytest
 from qdrant_client import QdrantClient, models
+
+pytestmark = pytest.mark.service
 
 
 def test_qdrant_baseline_data_path() -> None:
@@ -19,8 +22,16 @@ def test_qdrant_baseline_data_path() -> None:
         client.upsert(
             collection_name=collection,
             points=[
-                models.PointStruct(id=1, vector=[1.0, 0.0, 0.0, 0.0], payload={"text": "metadata filtering"}),
-                models.PointStruct(id=2, vector=[0.0, 1.0, 0.0, 0.0], payload={"text": "telemetry tracing"}),
+                models.PointStruct(
+                    id=1,
+                    vector=[1.0, 0.0, 0.0, 0.0],
+                    payload={"text": "metadata filtering"},
+                ),
+                models.PointStruct(
+                    id=2,
+                    vector=[0.0, 1.0, 0.0, 0.0],
+                    payload={"text": "telemetry tracing"},
+                ),
             ],
         )
 

@@ -8,6 +8,7 @@ from rag_harness.contracts import (
     ExperimentScenario,
     RunConfiguration,
     RunPackage,
+    ScenarioExpectation,
 )
 from rag_harness.registry import (
     EXP_RAG_001,
@@ -16,14 +17,11 @@ from rag_harness.registry import (
 )
 from rag_harness.run_storage import initialize_run_package
 
-
 CONFIG_PATH = Path("configs/exp_rag_001.json")
 
 
 def load_configuration() -> RunConfiguration:
-    return RunConfiguration.model_validate_json(
-        CONFIG_PATH.read_text(encoding="utf-8")
-    )
+    return RunConfiguration.model_validate_json(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
 def test_exp_rag_001_configuration_round_trips_as_json() -> None:
@@ -85,7 +83,41 @@ def test_unfiltered_scenario_must_be_explicit_control() -> None:
             scenario_id="unsafe_unfiltered",
             retrieval_mode="unfiltered_control",
             control_only=False,
+            query_text="diagnostic query",
+            expected=ScenarioExpectation(
+                execution="retrieval_executed",
+                retrieval_outcome="records_returned",
+                boundary_status="indeterminate",
+            ),
         )
+
+
+def test_executed_filtered_scenario_requires_complete_filters() -> None:
+    with pytest.raises(ValidationError, match="complete boundary filters"):
+        ExperimentScenario(
+            scenario_id="partial_filter",
+            retrieval_mode="filtered",
+            query_text="diagnostic query",
+            filter_parameters={"tenant_id": "tenant_a"},
+            expected={
+                "execution": "retrieval_executed",
+                "retrieval_outcome": "records_returned",
+                "boundary_status": "passed",
+            },
+        )
+
+
+def test_expected_validation_block_requires_missing_filter() -> None:
+    scenario = ExperimentScenario(
+        scenario_id="missing_filter",
+        retrieval_mode="filtered",
+        query_text="diagnostic query",
+        filter_parameters={},
+        expected={"execution": "blocked_by_validation"},
+    )
+
+    assert scenario.expected.retrieval_outcome is None
+    assert scenario.expected.boundary_status is None
 
 
 def test_registry_returns_exp_rag_001_definition() -> None:
@@ -140,15 +172,12 @@ def test_initialize_run_package_creates_non_overwriting_workspace(
     assert package.governed_v0_3_export_claimed is False
     assert len(package.artifact_references) == 2
     assert all(
-        reference.sha256 is not None
-        for reference in package.artifact_references
+        reference.sha256 is not None for reference in package.artifact_references
     )
 
-    persisted_package = json.loads(
-        workspace.package_path.read_text(encoding="utf-8")
-    )
+    persisted_package = json.loads(workspace.package_path.read_text(encoding="utf-8"))
     assert persisted_package["run_id"] == run_id
-    assert persisted_package["observability_status"] == "pending"
+    assert persisted_package["observability_status"] == "disabled"
 
     with pytest.raises(FileExistsError):
         initialize_run_package(
@@ -174,9 +203,7 @@ def test_initialize_standalone_run_package_preserves_missing_case_id(
     persisted_configuration = json.loads(
         workspace.configuration_path.read_text(encoding="utf-8")
     )
-    persisted_package = json.loads(
-        workspace.package_path.read_text(encoding="utf-8")
-    )
+    persisted_package = json.loads(workspace.package_path.read_text(encoding="utf-8"))
     assert persisted_configuration["case_id"] is None
     assert persisted_package["case_id"] is None
 

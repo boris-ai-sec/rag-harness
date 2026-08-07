@@ -1,8 +1,12 @@
+import pytest
+
 from scripts.semantic_retrieval_baseline import (
     build_collection,
     index_documents,
     semantic_search,
 )
+
+pytestmark = pytest.mark.service
 
 
 def test_semantic_retrieval_returns_metadata_filtering_first():

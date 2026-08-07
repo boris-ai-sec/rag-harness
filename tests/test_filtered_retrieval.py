@@ -1,3 +1,6 @@
+import pytest
+
+from rag_harness.retrieval import filtered_retrieval
 from scripts.metadata_ingestion_baseline import (
     COLLECTION,
     build_collection,
@@ -5,9 +8,8 @@ from scripts.metadata_ingestion_baseline import (
 )
 from scripts.semantic_retrieval_baseline import embed
 
-from rag_harness.retrieval import filtered_retrieval
 
-
+@pytest.mark.service
 def test_permitted_tenant_and_source_return_only_allowed_chunk() -> None:
     client = build_collection()
     index_valid_chunks(client)
@@ -26,11 +28,10 @@ def test_permitted_tenant_and_source_return_only_allowed_chunk() -> None:
     )
 
     assert run.retrieval_outcome == "records_returned"
-    assert run.returned_chunk_ids == [
-        "doc_a_001-chunk-0001"
-    ]
+    assert run.returned_chunk_ids == ["doc_a_001-chunk-0001"]
 
 
+@pytest.mark.service
 def test_other_source_in_same_tenant_is_not_returned() -> None:
     client = build_collection()
     index_valid_chunks(client)
@@ -51,6 +52,7 @@ def test_other_source_in_same_tenant_is_not_returned() -> None:
     assert "doc_a_002-chunk-0001" not in run.returned_chunk_ids
 
 
+@pytest.mark.service
 def test_other_tenant_is_not_returned() -> None:
     client = build_collection()
     index_valid_chunks(client)
@@ -71,6 +73,7 @@ def test_other_tenant_is_not_returned() -> None:
     assert "doc_b_001-chunk-0001" not in run.returned_chunk_ids
 
 
+@pytest.mark.service
 def test_unfiltered_control_exposes_cross_boundary_records() -> None:
     from rag_harness.retrieval import unfiltered_retrieval
 
@@ -95,6 +98,7 @@ def test_unfiltered_control_exposes_cross_boundary_records() -> None:
     assert "doc_a_001-chunk-0001" in run.returned_chunk_ids
 
 
+@pytest.mark.service
 def test_filtered_run_contains_required_run_metadata() -> None:
     client = build_collection()
     index_valid_chunks(client)
@@ -186,7 +190,10 @@ def test_boundary_verification_is_indeterminate_for_missing_metadata() -> None:
     assert "tenant_id" in reason
 
 
-def test_filtered_run_is_indeterminate_when_returned_payload_lacks_boundary_metadata() -> None:
+@pytest.mark.service
+def test_filtered_run_is_indeterminate_when_returned_payload_lacks_boundary_metadata() -> (
+    None
+):
     client = build_collection()
     index_valid_chunks(client)
 
@@ -208,18 +215,15 @@ def test_filtered_run_is_indeterminate_when_returned_payload_lacks_boundary_meta
         ],
     )
 
-    assert run.returned_chunk_ids == [
-        "doc_a_001-chunk-0001"
-    ]
+    assert run.returned_chunk_ids == ["doc_a_001-chunk-0001"]
     assert run.payload_references[0]["tenant_id"] is None
     assert run.retrieval_outcome == "records_returned"
     assert run.boundary_verification_status == "indeterminate"
     assert "tenant_id" in run.verification_reason
 
 
+@pytest.mark.service
 def test_filtered_retrieval_rejects_missing_boundary_filter() -> None:
-    import pytest
-
     client = build_collection()
     index_valid_chunks(client)
 
@@ -241,9 +245,8 @@ def test_filtered_retrieval_rejects_missing_boundary_filter() -> None:
         )
 
 
+@pytest.mark.service
 def test_filtered_retrieval_rejects_partial_boundary_filter() -> None:
-    import pytest
-
     client = build_collection()
     index_valid_chunks(client)
 
@@ -265,6 +268,7 @@ def test_filtered_retrieval_rejects_partial_boundary_filter() -> None:
         )
 
 
+@pytest.mark.service
 def test_incorrect_boundary_values_return_no_records() -> None:
     client = build_collection()
     index_valid_chunks(client)

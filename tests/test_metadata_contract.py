@@ -51,16 +51,3 @@ def test_chunk_payload_preserves_all_required_fields() -> None:
     assert payload["text"] == chunk.text
     assert payload["tenant_id"] == "tenant_a"
     assert payload["source_id"] == "source_permitted"
-
-
-def test_chunk_payload_preserves_all_required_fields() -> None:
-    chunk = Chunk(
-        text="Controlled synthetic metadata boundary record.",
-        metadata=validate_boundary_metadata(valid_metadata()),
-    )
-
-    payload = chunk.to_qdrant_payload()
-
-    assert payload["text"] == chunk.text
-    assert payload["tenant_id"] == "tenant_a"
-    assert payload["source_id"] == "source_permitted"

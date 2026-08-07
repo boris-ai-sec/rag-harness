@@ -29,9 +29,11 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "service: requires live local Qdrant and/or Ollama services",
+]
 
 [dependency-groups]
 dev = [
     "pytest==8.4.1",
 ]
-

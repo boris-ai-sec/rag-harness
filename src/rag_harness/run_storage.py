@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
+import os
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -12,6 +14,7 @@ from rag_harness.contracts import (
     ExperimentDefinition,
     RunArtifactReference,
     RunConfiguration,
+    RunError,
     RunPackage,
 )
 from rag_harness.registry import validate_experiment_configuration
@@ -44,6 +47,22 @@ def _write_json_exclusive(path: Path, payload: dict) -> None:
     with path.open("x", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
         handle.write("\n")
+
+
+def write_json_artifact(path: Path, payload: dict) -> Path:
+    """Write one immutable run artifact and refuse silent replacement."""
+
+    _write_json_exclusive(path, payload)
+    return path
+
+
+def _replace_json_atomic(path: Path, payload: dict) -> None:
+    temporary_path = path.with_name(f".{path.name}.tmp")
+    try:
+        _write_json_exclusive(temporary_path, payload)
+        os.replace(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def _sha256(path: Path) -> str:
@@ -120,3 +139,60 @@ def initialize_run_package(
         package.model_dump(mode="json"),
     )
     return workspace, package
+
+
+def finalize_run_package(
+    *,
+    workspace: RunWorkspace,
+    package: RunPackage,
+    status: str,
+    experiment_result: str,
+    artifact_paths: dict[str, Path],
+    errors: list[RunError] | None = None,
+    observability_status: str | None = None,
+) -> RunPackage:
+    """Atomically finalize one package with hashes of immutable artifacts."""
+
+    references = list(package.artifact_references)
+    known_paths = {reference.relative_path for reference in references}
+
+    for artifact_role, artifact_path in artifact_paths.items():
+        resolved_path = artifact_path.resolve()
+        try:
+            relative_path = resolved_path.relative_to(
+                workspace.directory.resolve()
+            ).as_posix()
+        except ValueError as exc:
+            raise ValueError("artifact must remain inside run directory") from exc
+        if relative_path in known_paths:
+            raise ValueError(f"duplicate artifact reference: {relative_path}")
+        if not resolved_path.is_file():
+            raise ValueError(f"artifact does not exist: {relative_path}")
+        references.append(
+            RunArtifactReference(
+                artifact_role=artifact_role,
+                relative_path=relative_path,
+                sha256=_sha256(resolved_path),
+            )
+        )
+        known_paths.add(relative_path)
+
+    payload = package.model_dump(mode="python")
+    payload.update(
+        {
+            "status": status,
+            "experiment_result": experiment_result,
+            "completed_at": datetime.now(UTC),
+            "artifact_references": references,
+            "errors": errors or [],
+        }
+    )
+    if observability_status is not None:
+        payload["observability_status"] = observability_status
+
+    finalized = RunPackage.model_validate(payload)
+    _replace_json_atomic(
+        workspace.package_path,
+        finalized.model_dump(mode="json"),
+    )
+    return finalized

@@ -1,10 +1,12 @@
-from qdrant_client import QdrantClient
+import pytest
 
 from scripts.metadata_ingestion_baseline import (
     COLLECTION,
     build_collection,
     index_valid_chunks,
 )
+
+pytestmark = pytest.mark.service
 
 
 def test_valid_chunks_are_indexed_with_complete_payload() -> None:

@@ -9,9 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class RetrievalRun(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    run_id: str = Field(
-        default_factory=lambda: f"run-{uuid4()}"
-    )
+    run_id: str = Field(default_factory=lambda: f"run-{uuid4()}")
     collection: str
     scenario: str | None = None
     retrieval_mode: str
@@ -34,7 +32,6 @@ from qdrant_client.models import (
 )
 
 
-
 def verify_boundary(
     *,
     filter_parameters: dict[str, str],
@@ -54,9 +51,7 @@ def verify_boundary(
 
     for payload in payload_references:
         missing_fields = {
-            field
-            for field in required_fields
-            if payload.get(field) is None
+            field for field in required_fields if payload.get(field) is None
         }
 
         if missing_fields:
@@ -79,7 +74,6 @@ def verify_boundary(
     )
 
 
-
 def validate_boundary_filter(
     *,
     tenant_id: str | None,
@@ -96,9 +90,7 @@ def validate_boundary_filter(
 
     if missing_fields:
         missing = ", ".join(missing_fields)
-        raise ValueError(
-            f"missing required boundary filter: {missing}"
-        )
+        raise ValueError(f"missing required boundary filter: {missing}")
 
     return {
         "tenant_id": tenant_id,
@@ -115,6 +107,7 @@ def filtered_retrieval(
     scenario: str | None = None,
     limit: int = 10,
     payload_fields: list[str] | None = None,
+    run_id: str | None = None,
 ) -> RetrievalRun:
     filter_parameters = validate_boundary_filter(
         tenant_id=tenant_id,
@@ -159,15 +152,12 @@ def filtered_retrieval(
     )
 
     return RetrievalRun(
+        **({"run_id": run_id} if run_id is not None else {}),
         collection=collection,
         scenario=scenario,
         retrieval_mode="filtered",
         filter_parameters=filter_parameters,
-        retrieval_outcome=(
-            "records_returned"
-            if results
-            else "empty"
-        ),
+        retrieval_outcome=("records_returned" if results else "empty"),
         boundary_verification_status=verification_status,
         verification_reason=verification_reason,
         returned_chunk_ids=[
@@ -185,6 +175,7 @@ def unfiltered_retrieval(
     query_vector: list[float],
     scenario: str | None = None,
     limit: int = 10,
+    run_id: str | None = None,
 ) -> RetrievalRun:
     results = client.query_points(
         collection_name=collection,
@@ -194,18 +185,19 @@ def unfiltered_retrieval(
     ).points
 
     return RetrievalRun(
+        **({"run_id": run_id} if run_id is not None else {}),
         collection=collection,
         scenario=scenario,
         retrieval_mode="unfiltered_control",
         filter_parameters={},
-        retrieval_outcome=(
-            "records_returned"
-            if results
-            else "empty"
-        ),
+        retrieval_outcome=("records_returned" if results else "empty"),
         returned_chunk_ids=[
-            result.payload["chunk_id"]
+            chunk_id
             for result in results
+            if isinstance(
+                (chunk_id := result.payload.get("chunk_id")),
+                str,
+            )
         ],
         payload_references=[
             {
