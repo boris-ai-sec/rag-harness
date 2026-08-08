@@ -14,6 +14,9 @@ runs/*
 artifacts/*
 !artifacts/.gitkeep
 
+exports/*
+!exports/.gitkeep
+
 # Local historical and generated material
 backups/
 *.egg-info/

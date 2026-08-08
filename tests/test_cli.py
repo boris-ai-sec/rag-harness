@@ -279,3 +279,86 @@ def test_cli_verify_maps_integrity_failure_to_exit_code_5(
     assert exit_code == cli.EXIT_VERIFICATION_FAILED
     assert output["exit_code"] == cli.EXIT_VERIFICATION_FAILED
     assert output["verification_status"] == "failed"
+
+
+def test_cli_export_v03_returns_machine_readable_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_export(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            model_dump=lambda mode: {
+                "export_status": "created",
+                "export_key": "a" * 64,
+                "case_id": "case_synthetic",
+                "governed_v0_3_export_claimed": True,
+                "client_system_verified": False,
+            }
+        )
+
+    monkeypatch.setattr(cli, "export_verified_run_v03", fake_export)
+    exit_code = cli.main(
+        [
+            "export-v03",
+            "--package",
+            str(tmp_path / "run_package.json"),
+            "--framework-root",
+            str(tmp_path / "framework"),
+            "--framework-case",
+            "CASE-SYNTHETIC",
+            "--evidence-request",
+            str(tmp_path / "request.md"),
+            "--output-root",
+            str(tmp_path / "exports"),
+            "--case-id",
+            "case_synthetic",
+        ]
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == cli.EXIT_PASS
+    assert output["exit_code"] == cli.EXIT_PASS
+    assert output["governed_v0_3_export_claimed"] is True
+    assert output["client_system_verified"] is False
+    assert captured["target_case_id"] == "case_synthetic"
+
+
+def test_cli_reuse_v03_preserves_failure_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "reuse_synthetic_export_v03",
+        lambda **kwargs: (_ for _ in ()).throw(
+            ValueError("synthetic source export is invalid")
+        ),
+    )
+
+    exit_code = cli.main(
+        [
+            "reuse-v03",
+            "--source-export",
+            str(tmp_path / "source-export"),
+            "--framework-root",
+            str(tmp_path / "framework"),
+            "--framework-case",
+            "CASE-CLIENT",
+            "--evidence-request",
+            str(tmp_path / "request.md"),
+            "--output-root",
+            str(tmp_path / "exports"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    error = json.loads(captured.err)
+    assert captured.out == ""
+    assert exit_code == cli.EXIT_GOVERNED_EXPORT_FAILED
+    assert error["status"] == "governed_reuse_failed"
+    assert error["source_evidence_changed"] is False

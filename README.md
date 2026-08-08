@@ -14,9 +14,10 @@ This repository is an experimental baseline, not a production RAG application. I
 - Synthetic metadata-filtering baseline
 - OpenTelemetry export semantics with graceful fallback
 - Machine-readable laboratory artifacts
+- Unified run-native operator CLI and read-only integrity verifier
+- Governed Technical Prototype V0.3 Layer 2 export adapter
+- Synthetic-to-client evidence reuse with explicit provenance boundaries
 - Automated integration and telemetry tests
-
-Current test gate: 5 passed.
 
 ## Architecture
 
@@ -50,8 +51,10 @@ The current baseline uses dense semantic retrieval. Sparse retrieval, BM25-style
 - tests/
 - artifacts/
 - runs/
+- exports/
 
-Generated contents of artifacts/ and runs/ remain local and are excluded from Git.
+Generated contents of artifacts/, runs/, and exports/ remain local and are
+excluded from Git.
 
 ## Prerequisites
 
@@ -128,6 +131,57 @@ SHA-256 digests, JSON identity fields, and unreferenced files. It returns exit
 code `0` only when every integrity check passes; integrity failure returns `5`.
 The machine-readable result is written to stdout and does not perform governed
 export.
+
+### Governed V0.3 export
+
+Export a verified terminal run into an existing frozen V0.3 case and Evidence
+Request:
+
+    rag-harness export-v03 \
+      --package runs/run-<uuid>/run_package.json \
+      --framework-root /path/to/AI_Risk_Review_Technical_Prototype \
+      --framework-case CASE-FOLDER-NAME \
+      --evidence-request /path/to/case/layer2/evidence_requests/REQUEST.md \
+      --output-root exports
+
+For a standalone source package with `case_id=null`, pass an explicitly chosen,
+pre-existing synthetic case identity with `--case-id`. The adapter never invents
+or registers a case and never rewrites the run package. A package that already
+has a `case_id` cannot be reassigned by this command.
+
+The adapter first runs read-only package verification and the frozen
+`assess.py check-case` command. It then creates draft Layer 2 objects only:
+
+- Artifact Manifest
+- Demonstration Record
+- experiment-outcome and integrity Evidence Records
+- Evidence Package
+
+The deterministic export key covers the source package SHA-256, target case,
+Evidence Request, adapter version, and target contract version. Repeating the
+same export returns the validated existing set without overwriting it; changing
+an identity component creates a separate revision.
+
+Reuse synthetic evidence in a different client case without renaming the
+original objects:
+
+    rag-harness reuse-v03 \
+      --source-export exports/<synthetic-case>/<request>/export-<key> \
+      --framework-root /path/to/AI_Risk_Review_Technical_Prototype \
+      --framework-case CLIENT-CASE-FOLDER \
+      --evidence-request /path/to/client/case/evidence_request.md \
+      --output-root exports
+
+This creates a new client-scoped Artifact Manifest, Evidence Record, and
+Evidence Package. The new record points to the original synthetic governed
+objects through V0.3 provenance and related references and carries an explicit
+limitation that the source does not establish client implementation, production
+behavior, tenant isolation, or readiness.
+
+Both commands write machine-readable JSON to stdout. Governed export/reuse
+failure returns exit code `6` and does not change source evidence. Neither route
+creates Layer 1 findings, readiness decisions, client recommendations, or
+production verification claims.
 
 ## Laboratory status
 

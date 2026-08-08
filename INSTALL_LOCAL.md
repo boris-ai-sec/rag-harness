@@ -124,9 +124,10 @@ Generated artifact contents are excluded from Git.
 
     pytest -q
 
-The current expected test gate is:
+Framework conformance tests additionally use the extracted frozen Technical
+Prototype V0.3 root:
 
-    5 passed
+    FRAMEWORK_V03_ROOT=/path/to/AI_Risk_Review_Technical_Prototype pytest -q
 
 ## 10. Optional telemetry smoke run
 
@@ -149,6 +150,7 @@ The following remain local and are excluded from Git:
 - .env
 - runs/
 - artifacts/
+- exports/
 - backups/
 - Qdrant storage data
 
