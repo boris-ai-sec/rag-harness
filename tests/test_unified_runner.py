@@ -78,9 +78,35 @@ class FakeVectorStore:
         query_vector: list[float],
         limit: int,
     ) -> RetrievalRun:
+        filter_parameters = {
+            key: value
+            for key, value in scenario.filter_parameters.model_dump().items()
+            if value is not None
+        }
+        if filter_parameters == {
+            "tenant_id": "tenant_unknown",
+            "source_id": "source_unknown",
+        }:
+            return RetrievalRun(
+                run_id=run_id,
+                collection=collection,
+                scenario=scenario.scenario_id,
+                retrieval_mode=scenario.retrieval_mode,
+                filter_parameters=filter_parameters,
+                retrieval_outcome="empty",
+                boundary_verification_status="passed",
+                verification_reason=(
+                    "no records returned; no boundary violation observed"
+                ),
+                returned_chunk_ids=[],
+                payload_references=[],
+            )
+
+        missing_boundary_metadata = "tenant_id" not in scenario.payload_projection
         boundary_status = (
             "indeterminate"
             if scenario.retrieval_mode == "unfiltered_control"
+            or missing_boundary_metadata
             else "passed"
         )
         if self.mismatch and scenario.scenario_id == "permitted_source":
@@ -90,16 +116,24 @@ class FakeVectorStore:
             collection=collection,
             scenario=scenario.scenario_id,
             retrieval_mode=scenario.retrieval_mode,
-            filter_parameters={
-                key: value
-                for key, value in scenario.filter_parameters.model_dump().items()
-                if value is not None
-            },
+            filter_parameters=filter_parameters,
             retrieval_outcome="records_returned",
             boundary_verification_status=boundary_status,
-            verification_reason="controlled fake result",
+            verification_reason=(
+                "missing required payload metadata: tenant_id"
+                if missing_boundary_metadata
+                else "controlled fake result"
+            ),
             returned_chunk_ids=["doc_a_001-chunk-0001"],
-            payload_references=[],
+            payload_references=[
+                {
+                    "point_id": "point-001",
+                    "document_id": "doc_a_001",
+                    "chunk_id": "doc_a_001-chunk-0001",
+                    **({} if missing_boundary_metadata else {"tenant_id": "tenant_a"}),
+                    "source_id": "source_permitted",
+                }
+            ],
         )
 
 
@@ -130,11 +164,55 @@ def test_unified_runner_completes_one_authoritative_package(
     retrieval_artifact = json.loads(
         (workspace.directory / "retrieval_results.json").read_text()
     )
-    assert len(retrieval_artifact["scenarios"]) == 4
+    assert len(retrieval_artifact["scenarios"]) == 8
     assert {
-        item["retrieval"]["run_id"] for item in retrieval_artifact["scenarios"]
+        item["retrieval"]["run_id"]
+        for item in retrieval_artifact["scenarios"]
+        if item["execution"] == "retrieval_executed"
     } == {FIXED_RUN_ID}
     assert retrieval_artifact["governed_v0_3_export_claimed"] is False
+
+
+def test_unified_runner_records_expected_degradation_outcomes(
+    tmp_path: Path,
+) -> None:
+    workspace, package = execute_experiment(
+        runs_root=tmp_path / "runs",
+        definition=EXP_RAG_001,
+        configuration=load_configuration(),
+        corpus=CONTROLLED_CORPUS,
+        embeddings=FakeEmbeddings(),
+        vector_store=FakeVectorStore(),
+        run_id=FIXED_RUN_ID,
+    )
+
+    retrieval_artifact = json.loads(
+        (workspace.directory / "retrieval_results.json").read_text()
+    )
+    scenarios = {item["scenario_id"]: item for item in retrieval_artifact["scenarios"]}
+
+    assert package.status == "completed"
+    assert package.experiment_result == "pass"
+
+    for scenario_id in ("missing_filter", "partial_filter"):
+        scenario = scenarios[scenario_id]
+        assert scenario["execution"] == "blocked_by_validation"
+        assert scenario["expected_block"] is True
+        assert scenario["error_type"] == "ValueError"
+        assert scenario["assertions"] == {"expected_execution_matches": True}
+
+    incorrect_values = scenarios["incorrect_boundary_values"]
+    assert incorrect_values["retrieval"]["retrieval_outcome"] == "empty"
+    assert incorrect_values["retrieval"]["boundary_verification_status"] == "passed"
+    assert all(incorrect_values["assertions"].values())
+
+    missing_metadata = scenarios["missing_returned_metadata"]
+    assert missing_metadata["retrieval"]["retrieval_outcome"] == "records_returned"
+    assert (
+        missing_metadata["retrieval"]["boundary_verification_status"] == "indeterminate"
+    )
+    assert "tenant_id" in missing_metadata["retrieval"]["verification_reason"]
+    assert all(missing_metadata["assertions"].values())
 
 
 def test_preflight_failure_blocks_without_evaluating_experiment(

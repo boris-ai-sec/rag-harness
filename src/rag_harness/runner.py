@@ -106,6 +106,7 @@ def _execute_scenario(
             return {
                 "scenario_id": scenario.scenario_id,
                 "execution": "blocked_by_validation",
+                "expected": scenario.expected.model_dump(mode="json"),
                 "expected_block": True,
                 "error_type": type(error).__name__,
                 "error_message": str(error),
@@ -114,6 +115,7 @@ def _execute_scenario(
         return {
             "scenario_id": scenario.scenario_id,
             "execution": "validation_unexpectedly_passed",
+            "expected": scenario.expected.model_dump(mode="json"),
             "expected_block": True,
             "assertions": {"expected_execution_matches": False},
         }

@@ -120,6 +120,24 @@ def test_expected_validation_block_requires_missing_filter() -> None:
     assert scenario.expected.boundary_status is None
 
 
+def test_exp_rag_001_declares_bounded_degradation_scenarios() -> None:
+    scenarios = {
+        scenario.scenario_id: scenario for scenario in load_configuration().scenarios
+    }
+
+    assert scenarios["missing_filter"].expected.execution == "blocked_by_validation"
+    assert scenarios["partial_filter"].expected.execution == "blocked_by_validation"
+
+    incorrect_values = scenarios["incorrect_boundary_values"]
+    assert incorrect_values.expected.retrieval_outcome == "empty"
+    assert incorrect_values.expected.boundary_status == "passed"
+
+    missing_metadata = scenarios["missing_returned_metadata"]
+    assert "tenant_id" not in missing_metadata.payload_projection
+    assert missing_metadata.expected.retrieval_outcome == "records_returned"
+    assert missing_metadata.expected.boundary_status == "indeterminate"
+
+
 def test_registry_returns_exp_rag_001_definition() -> None:
     definition = get_experiment("EXP-RAG-001")
 

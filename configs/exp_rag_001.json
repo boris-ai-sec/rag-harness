@@ -67,6 +67,63 @@
         "retrieval_outcome": "records_returned",
         "boundary_status": "indeterminate"
       }
+    },
+    {
+      "scenario_id": "missing_filter",
+      "retrieval_mode": "filtered",
+      "control_only": false,
+      "query_text": "Tenant A permitted source record.",
+      "filter_parameters": {},
+      "expected": {
+        "execution": "blocked_by_validation"
+      }
+    },
+    {
+      "scenario_id": "partial_filter",
+      "retrieval_mode": "filtered",
+      "control_only": false,
+      "query_text": "Tenant A permitted source record.",
+      "filter_parameters": {
+        "tenant_id": "tenant_a"
+      },
+      "expected": {
+        "execution": "blocked_by_validation"
+      }
+    },
+    {
+      "scenario_id": "incorrect_boundary_values",
+      "retrieval_mode": "filtered",
+      "control_only": false,
+      "query_text": "Tenant A permitted source record.",
+      "filter_parameters": {
+        "tenant_id": "tenant_unknown",
+        "source_id": "source_unknown"
+      },
+      "expected": {
+        "execution": "retrieval_executed",
+        "retrieval_outcome": "empty",
+        "boundary_status": "passed"
+      }
+    },
+    {
+      "scenario_id": "missing_returned_metadata",
+      "retrieval_mode": "filtered",
+      "control_only": false,
+      "query_text": "Tenant A permitted source record.",
+      "filter_parameters": {
+        "tenant_id": "tenant_a",
+        "source_id": "source_permitted"
+      },
+      "expected": {
+        "execution": "retrieval_executed",
+        "retrieval_outcome": "records_returned",
+        "boundary_status": "indeterminate"
+      },
+      "payload_projection": [
+        "document_id",
+        "chunk_id",
+        "source_id"
+      ]
     }
   ],
   "telemetry": {
