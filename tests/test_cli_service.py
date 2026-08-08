@@ -45,6 +45,15 @@ def test_cli_executes_exp_rag_001_with_real_services(
         assert output["case_id"] is None
         assert output["governed_v0_3_export_claimed"] is False
         assert package_path.is_file()
+
+        verification_exit_code = cli.main(["verify", "--package", str(package_path)])
+        verification = json.loads(capsys.readouterr().out)
+
+        assert verification_exit_code == cli.EXIT_PASS
+        assert verification["verification_status"] == "verified"
+        assert verification["failure_count"] == 0
+        assert verification["read_only"] is True
+        assert verification["governed_v0_3_export_claimed"] is False
     finally:
         if collection and vector_store.client.collection_exists(collection):
             vector_store.client.delete_collection(collection)

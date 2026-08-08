@@ -117,6 +117,18 @@ codes are stable:
 The CLI produces run-native Layer 2 evidence only. It does not claim governed
 V0.3 export or client-system verification.
 
+Verify a finalized package without modifying the run directory:
+
+    rag-harness verify \
+      --package runs/run-<uuid>/run_package.json
+
+Verification checks the package contract, terminal status, run-directory
+identity, artifact containment, symbolic links, referenced-file presence,
+SHA-256 digests, JSON identity fields, and unreferenced files. It returns exit
+code `0` only when every integrity check passes; integrity failure returns `5`.
+The machine-readable result is written to stdout and does not perform governed
+export.
+
 ## Laboratory status
 
 ### LAB-RH-01

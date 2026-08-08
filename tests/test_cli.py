@@ -7,6 +7,7 @@ import pytest
 
 from rag_harness import cli
 from rag_harness.contracts import RunPackage
+from rag_harness.verification import RunPackageVerification, VerificationCheck
 
 CONFIG_PATH = Path("configs/exp_rag_001.json")
 FIXED_RUN_ID = "run-2742eadb-2d12-4d6a-bbe7-9026485c20f1"
@@ -210,3 +211,71 @@ def test_cli_rejects_case_id_and_standalone_together() -> None:
         )
 
     assert error.value.code == cli.EXIT_INPUT_ERROR
+
+
+def test_cli_verify_reports_verified_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    package_path = tmp_path / FIXED_RUN_ID / "run_package.json"
+    monkeypatch.setattr(
+        cli,
+        "verify_run_package",
+        lambda path: RunPackageVerification(
+            verification_status="verified",
+            package_path=str(path),
+            run_id=FIXED_RUN_ID,
+            experiment_id="EXP-RAG-001",
+            artifact_count=3,
+            failure_count=0,
+            checks=[
+                VerificationCheck(
+                    check_id="package.contract",
+                    status="pass",
+                    detail="package contract is valid",
+                )
+            ],
+        ),
+    )
+
+    exit_code = cli.main(["verify", "--package", str(package_path)])
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == cli.EXIT_PASS
+    assert output["exit_code"] == cli.EXIT_PASS
+    assert output["verification_status"] == "verified"
+    assert output["read_only"] is True
+    assert output["governed_v0_3_export_claimed"] is False
+
+
+def test_cli_verify_maps_integrity_failure_to_exit_code_5(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    package_path = tmp_path / FIXED_RUN_ID / "run_package.json"
+    monkeypatch.setattr(
+        cli,
+        "verify_run_package",
+        lambda path: RunPackageVerification(
+            verification_status="failed",
+            package_path=str(path),
+            artifact_count=0,
+            failure_count=1,
+            checks=[
+                VerificationCheck(
+                    check_id="package.regular_file",
+                    status="fail",
+                    detail="package is missing",
+                )
+            ],
+        ),
+    )
+
+    exit_code = cli.main(["verify", "--package", str(package_path)])
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == cli.EXIT_VERIFICATION_FAILED
+    assert output["exit_code"] == cli.EXIT_VERIFICATION_FAILED
+    assert output["verification_status"] == "failed"

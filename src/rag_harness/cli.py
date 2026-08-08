@@ -15,12 +15,14 @@ from rag_harness.contracts import RunConfiguration, RunPackage
 from rag_harness.corpus import CONTROLLED_CORPUS
 from rag_harness.registry import get_experiment
 from rag_harness.runner import execute_experiment
+from rag_harness.verification import verify_run_package
 
 EXIT_PASS = 0
 EXIT_EXPERIMENT_FAIL = 1
 EXIT_INPUT_ERROR = 2
 EXIT_BLOCKED = 3
 EXIT_EXECUTION_FAILED = 4
+EXIT_VERIFICATION_FAILED = 5
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -58,6 +60,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--standalone",
         action="store_true",
         help="clear case_id for a standalone run-native laboratory execution",
+    )
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="verify one finalized run package without modifying it",
+    )
+    verify_parser.add_argument(
+        "--package",
+        type=Path,
+        required=True,
+        help="path to the authoritative run_package.json",
     )
     return parser
 
@@ -170,10 +182,25 @@ def _run(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def _verify(args: argparse.Namespace) -> int:
+    verification = verify_run_package(args.package)
+    exit_code = (
+        EXIT_PASS
+        if verification.verification_status == "verified"
+        else EXIT_VERIFICATION_FAILED
+    )
+    payload = verification.model_dump(mode="json")
+    payload["exit_code"] = exit_code
+    _write_json(payload)
+    return exit_code
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "run":
         return _run(args)
+    if args.command == "verify":
+        return _verify(args)
     raise AssertionError(f"unhandled command: {args.command}")
 
 
