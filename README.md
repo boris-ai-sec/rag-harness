@@ -90,6 +90,33 @@ Run all tests:
 
     pytest -q
 
+## Operator CLI
+
+Run the unified `EXP-RAG-001` experiment with its configured case identity:
+
+    rag-harness run \
+      --config configs/exp_rag_001.json \
+      --runs-root runs
+
+Use `--case-id CASE_ID` to set a client-scoped case identity, or use
+`--standalone` to create run-native laboratory evidence without a `case_id`.
+Setting a case identity does not itself perform governed export. The two
+options are mutually exclusive. Every execution still receives a required
+`run_id`; an explicit non-colliding ID can be supplied with `--run-id`.
+
+The command writes one JSON result to stdout containing the `run_id`, terminal
+status, experiment result, and authoritative `run_package.json` path. Exit
+codes are stable:
+
+- `0`: completed with the expected experiment result (`pass`)
+- `1`: completed with an assertion mismatch (`fail`)
+- `2`: CLI input, configuration, dependency, or workspace error
+- `3`: execution blocked before evaluation
+- `4`: execution failed or remained indeterminate
+
+The CLI produces run-native Layer 2 evidence only. It does not claim governed
+V0.3 export or client-system verification.
+
 ## Laboratory status
 
 ### LAB-RH-01

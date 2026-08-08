@@ -11,6 +11,9 @@ dependencies = [
     "pydantic>=2.10,<3",
 ]
 
+[project.scripts]
+rag-harness = "rag_harness.cli:main"
+
 [project.optional-dependencies]
 telemetry = [
   "opentelemetry-api==1.43.0",
